@@ -1,0 +1,897 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>آزمایشگاه جامع احجام هندسی (نقطه، خط، صفحه)</title>
+<link href="https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/Vazirmatn-font-face.css" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+
+<style>
+  :root {
+    --primary: #4f46e5;
+    --primary-light: #818cf8;
+    --bg: #0f172a;
+    --panel-bg: #1e293b;
+    --border: #334155;
+    --text-light: #f8fafc;
+    --text-muted: #94a3b8;
+    --point-color: #ef4444;
+    --line-color: #facc15; 
+    --success: #10b981;
+    --danger: #ef4444;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  html, body { 
+    font-family: 'Vazirmatn', sans-serif; 
+    background: var(--bg); 
+    color: var(--text-light); 
+    width: 100%;
+    height: 100%; 
+    overflow: hidden; 
+  }
+  body {
+    display: flex; 
+    flex-direction: column; 
+  }
+  
+  /* هدر */
+  .header { 
+    background: linear-gradient(135deg, #312e81, var(--primary)); 
+    color: white; 
+    padding: 0.5rem 1rem; 
+    text-align: center; 
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3); 
+    z-index: 30; 
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  .header h1 { font-size: 0.95rem; font-weight: 800; }
+  .header .subtitle {
+    font-size: 0.65rem; 
+    opacity: 0.85; 
+    font-weight: 500;
+    cursor: pointer;
+  }
+  .header .subtitle:hover { opacity: 1; text-decoration: underline; }
+  
+  /* Layout اصلی */
+  .app-container { 
+    display: flex; 
+    flex: 1; 
+    overflow: hidden; 
+    position: relative;
+    width: 100%;
+  }
+  
+  /* سایدبارها در دسکتاپ (فشرده و بهینه) */
+  .sidebar { 
+    width: 260px; 
+    background: var(--panel-bg); 
+    padding: 0.9rem; 
+    overflow-y: auto; 
+    display: flex; 
+    flex-direction: column; 
+    gap: 0.9rem; 
+    z-index: 20; 
+    flex-shrink: 0; 
+    transition: transform 0.3s ease-in-out;
+  }
+  .sidebar-right { border-left: 1px solid var(--border); }
+  .sidebar-left { border-right: 1px solid var(--border); }
+  
+  /* مخفی کردن پنل اختصاصی موبایل در حالت دسکتاپ */
+  #panel-analysis { display: none; }
+
+  .sidebar h2 { font-size: 0.82rem; color: #818cf8; border-bottom: 1px dashed var(--border); padding-bottom: 0.35rem; margin-bottom: 0.6rem; display: flex; align-items: center; gap: 5px; }
+
+  /* چیدمان فشرده مختصات X, Y, Z در یک ردیف */
+  .compact-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+    margin-bottom: 8px;
+  }
+  .input-group { margin-bottom: 0; }
+  .input-group label { display: block; font-size: 0.7rem; font-weight: bold; margin-bottom: 0.2rem; color: var(--text-muted); text-align: center; }
+  .input-group input { width: 100%; padding: 0.35rem; background: #0f172a; color: white; border: 1px solid var(--border); border-radius: 6px; font-family: inherit; font-size: 0.85rem; text-align: center; }
+  .input-group input:focus { outline: none; border-color: var(--primary); }
+  
+  .btn { background: var(--primary); color: white; border: none; padding: 0.45rem 0.6rem; border-radius: 6px; font-family: inherit; font-weight: bold; cursor: pointer; transition: 0.2s; width: 100%; margin-bottom: 0.35rem; font-size: 0.78rem; display: flex; justify-content: center; align-items: center; gap: 5px;}
+  .btn:hover { filter: brightness(1.1); }
+  .btn:active { transform: scale(0.98); }
+  .btn-success { background: var(--success); }
+  .btn-danger { background: var(--danger); }
+  .btn-outline { background: transparent; color: var(--text-light); border: 1px solid var(--border); }
+  .btn-outline:hover { background: rgba(255,255,255,0.05); }
+  
+  .tool-section { background: #0f172a; padding: 0.7rem; border-radius: 8px; border: 1px solid var(--border); }
+  .tool-btn { display: flex; align-items: center; justify-content: flex-start; gap: 6px; padding: 6px 8px; border: 1px solid var(--border); background: var(--panel-bg); color: var(--text-light); border-radius: 6px; margin-bottom: 5px; cursor: pointer; transition: 0.2s; width: 100%; font-family: inherit; font-size: 0.75rem; font-weight: bold;}
+  .tool-btn.active { border-color: var(--primary); background: rgba(79, 70, 229, 0.25); color: #818cf8; }
+  .indicator { width: 10px; height: 10px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
+  .ind-point { background: var(--point-color); }
+  .ind-line { background: var(--line-color); }
+
+  #countResults, #countResultsMobile { margin-top: 6px; font-size: 0.75rem; font-weight: bold; display: none; background: #1e293b; padding: 6px 8px; border-radius: 6px; border: 1px solid var(--border); line-height: 1.5; }
+  #countResults span, #countResultsMobile span { font-size: 0.85rem; }
+
+  /* Viewport (محیط سه‌بعدی) */
+  .viewport { flex: 1; position: relative; background: #090d16; height: 100%; overflow: hidden; }
+  #canvas-container { width: 100%; height: 100%; outline: none; touch-action: none; }
+  
+  .instruction { 
+    position: absolute; 
+    bottom: 12px; 
+    left: 50%; 
+    transform: translateX(-50%); 
+    background: rgba(15, 23, 42, 0.85); 
+    color: white; 
+    padding: 5px 12px; 
+    border-radius: 50px; 
+    font-size: 0.68rem; 
+    pointer-events: none; 
+    backdrop-filter: blur(6px); 
+    border: 1px solid var(--border); 
+    display: flex; 
+    gap: 10px; 
+    white-space: nowrap;
+  }
+  
+  #labels-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; overflow: hidden; }
+  .label-3d { position: absolute; color: #fff; background: rgba(15, 23, 42, 0.9); padding: 2px 5px; border-radius: 4px; font-size: 11px; font-weight: bold; transform: translate(-50%, -50%); border: 1px solid rgba(255,255,255,0.2); white-space: nowrap; }
+  .label-point { background: var(--point-color); }
+  .label-line { background: #ca8a04; color: white; }
+  .label-plane { background: var(--primary); }
+
+  /* منوی پایین موبایل (مخفی در دسکتاپ) */
+  .mobile-nav {
+    display: none;
+  }
+
+  .overlay {
+    display: none;
+    position: fixed;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0,0,0,0.5);
+    z-index: 45;
+    backdrop-filter: blur(2px);
+  }
+
+  /* =========================================
+     تنظیمات اختصاصی موبایل و تبلت (زیر 820px)
+     ========================================= */
+  @media (max-width: 820px) {
+    .app-container { 
+      flex-direction: column; 
+      padding-bottom: 58px; /* رزرو فضا برای منوی پایین */
+    }
+    
+    /* نمایش منوی پایین به صورت ثابت در کف صفحه */
+    .mobile-nav {
+      display: flex;
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      width: 100%;
+      height: 58px;
+      background: var(--panel-bg);
+      border-top: 1px solid var(--border);
+      z-index: 100;
+      justify-content: space-around;
+      align-items: center;
+      box-shadow: 0 -4px 12px rgba(0,0,0,0.4);
+    }
+    .mobile-nav-btn {
+      background: transparent;
+      border: none;
+      font-family: inherit;
+      font-size: 0.72rem;
+      font-weight: bold;
+      color: var(--text-muted);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 2px;
+      cursor: pointer;
+      padding: 5px 14px;
+      border-radius: 8px;
+      flex: 1;
+    }
+    .mobile-nav-btn.active { color: #818cf8; background: rgba(79, 70, 229, 0.2); }
+    .mobile-nav-btn span { font-size: 1.15rem; }
+
+    /* پنل‌های کشویی موبایل بالای منوی پایین */
+    .sidebar { 
+      position: fixed;
+      bottom: 58px;
+      left: 0;
+      right: 0;
+      width: 100%;
+      max-height: 42vh;
+      height: auto;
+      border: none;
+      border-radius: 16px 16px 0 0; 
+      box-shadow: 0 -10px 30px rgba(0,0,0,0.6);
+      transform: translateY(150%);
+      padding: 0.9rem;
+      border-top: 1px solid var(--border);
+      z-index: 60;
+    }
+    #panel-analysis { display: flex; }
+    .sidebar.active { transform: translateY(0); }
+    .overlay.active { display: block; }
+    
+    .instruction { display: none; }
+    #panel-edit #analysisSection { display: none; }
+
+    .analysis-grid {
+      display: grid;
+      grid-template-columns: 1.3fr 1fr;
+      gap: 8px;
+      align-items: start;
+    }
+    #countResultsMobile { margin-top: 0; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>آزمایشگاه جامع احجام هندسی (نقطه، خط، صفحه)</h1>
+  <a href="https://ble.ir/join/9soFcrfJNC" target="_blank" style="text-decoration: none; color: inherit;">
+    <div class="subtitle">
+      توسعه‌دهنده: مریم هوتی‌نژاد | دکتری تخصصی هوش مصنوعی، هنرآموز کامپیوتر هنرستان ایثارگران بانک ملت (استان کرمان)
+    </div>
+  </a>
+</div>
+
+<div class="app-container">
+  <div class="overlay" id="overlay" onclick="closeAllPanels()"></div>
+
+  <!-- پنل ساخت (راست) -->
+  <div class="sidebar sidebar-right" id="panel-add">
+    <div>
+      <h2>➕ ساخت مکعب پایه</h2>
+      <div class="compact-grid">
+        <div class="input-group">
+          <label>موقعیت X</label>
+          <input type="number" id="addX" step="1" value="0">
+        </div>
+        <div class="input-group">
+          <label>موقعیت Y</label>
+          <input type="number" id="addY" step="1" value="0">
+        </div>
+        <div class="input-group">
+          <label>موقعیت Z</label>
+          <input type="number" id="addZ" step="1" value="0">
+        </div>
+      </div>
+      
+      <button class="btn" onclick="addNewBlock()">➕ افزودن به حجم هندسی</button>
+      <button class="btn btn-outline" onclick="clearAll()">🗑️ پاکسازی کامل صفحه</button>
+    </div>
+  </div>
+
+  <!-- محیط رندر سه‌بعدی (مرکز) -->
+  <div class="viewport">
+    <div id="canvas-container"></div>
+    <div id="labels-container"></div>
+    <div class="instruction">
+      <span>🖱️ چرخش فضا: درگ با ماوس</span>
+      <span>🎯 انتخاب: کلیک روی مکعب</span>
+    </div>
+  </div>
+
+  <!-- پنل ویرایش و تحلیل (چپ - دسکتاپ) -->
+  <div class="sidebar sidebar-left" id="panel-edit">
+    <div id="editSection">
+      <h2>✏️ ویرایش المان انتخابی</h2>
+      <p id="noSelectionMsg" style="font-size: 0.75rem; color: var(--text-muted); text-align:center; padding: 8px 0;">برای ویرایش، روی یکی از مکعب‌ها کلیک کنید.</p>
+      
+      <div id="editPanel" style="display: none;">
+        <div class="compact-grid">
+          <div class="input-group">
+            <label>موقعیت X</label>
+            <input type="number" id="editX" step="1" value="0">
+          </div>
+          <div class="input-group">
+            <label>موقعیت Y</label>
+            <input type="number" id="editY" step="1" value="0">
+          </div>
+          <div class="input-group">
+            <label>موقعیت Z</label>
+            <input type="number" id="editZ" step="1" value="0">
+          </div>
+        </div>
+        
+        <div style="display: flex; gap: 5px;">
+          <button class="btn btn-outline" onclick="changeHeight(1)">⬆️ بالا</button>
+          <button class="btn btn-outline" onclick="changeHeight(-1)">⬇️ پایین</button>
+        </div>
+
+        <div style="display: flex; gap: 5px;">
+          <button class="btn btn-success" onclick="saveEdit()">💾 اعمال</button>
+          <button class="btn btn-outline" onclick="duplicateSelected()">📄 تکثیر</button>
+        </div>
+        <button class="btn btn-danger" onclick="deleteSelected()">🗑️ حذف مکعب</button>
+      </div>
+    </div>
+
+    <div class="tool-section" id="analysisSection">
+      <h2>🔍 تحلیل هندسی احجام</h2>
+      
+      <div>
+        <button class="tool-btn" onclick="toggleHighlight('points', this)">
+          <span class="indicator ind-point"></span> شماره‌گذاری نقاط کلیدی
+        </button>
+        <button class="tool-btn" onclick="toggleHighlight('lines', this)">
+          <span class="indicator ind-line"></span> تحلیل و شماره‌گذاری لبه‌ها
+        </button>
+        <button class="tool-btn" onclick="toggleHighlight('planes', this)">
+          <span class="indicator" style="background: linear-gradient(45deg, #ef4444, #4f46e5);"></span> نمایش صفحات خارجی
+        </button>
+      </div>
+
+      <div id="countResults">
+        <div style="color: var(--point-color);">🔴 نقاط (گوشه‌ها): <span id="countPoints">0</span></div>
+        <div style="color: #ca8a04;">🟡 خطوط (لبه‌ها): <span id="countLines">0</span></div>
+        <div style="color: #818cf8;">🟦 صفحات (سطوح): <span id="countPlanes">0</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- پنل تحلیل اختصاصی موبایل -->
+  <div class="sidebar" id="panel-analysis">
+    <h2>🔍 تحلیل هندسی احجام</h2>
+    <div class="analysis-grid">
+      <div>
+        <button class="tool-btn" onclick="toggleHighlight('points', this)">
+          <span class="indicator ind-point"></span> نقاط (گوشه‌ها)
+        </button>
+        <button class="tool-btn" onclick="toggleHighlight('lines', this)">
+          <span class="indicator ind-line"></span> خطوط (لبه‌ها)
+        </button>
+        <button class="tool-btn" onclick="toggleHighlight('planes', this)">
+          <span class="indicator" style="background: linear-gradient(45deg, red, blue);"></span> صفحات خارجی
+        </button>
+      </div>
+      
+      <div id="countResultsMobile">
+        <div style="color: var(--point-color); margin-bottom: 3px;">🔴 نقاط: <span id="countPointsMobile">0</span></div>
+        <div style="color: #ca8a04; margin-bottom: 3px;">🟡 خطوط: <span id="countLinesMobile">0</span></div>
+        <div style="color: #818cf8;">🟦 صفحات: <span id="countPlanesMobile">0</span></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- منوی پایین موبایل -->
+<div class="mobile-nav">
+  <button class="mobile-nav-btn" onclick="togglePanel('panel-add', this)">
+    <span>➕</span> ساخت حجم
+  </button>
+  <button class="mobile-nav-btn" onclick="togglePanel('panel-edit', this)">
+    <span>✏️</span> ویرایش
+  </button>
+  <button class="mobile-nav-btn" onclick="togglePanel('panel-analysis', this)">
+    <span>🔍</span> تحلیل هندسی
+  </button>
+</div>
+
+<script>
+  function togglePanel(panelId, btn) {
+    const panel = document.getElementById(panelId);
+    const overlay = document.getElementById('overlay');
+    const isActive = panel.classList.contains('active');
+
+    closeAllPanels();
+
+    if (!isActive) {
+      panel.classList.add('active');
+      overlay.classList.add('active');
+      btn.classList.add('active');
+    }
+  }
+
+  function closeAllPanels() {
+    document.querySelectorAll('.sidebar').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.mobile-nav-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById('overlay').classList.remove('active');
+  }
+
+  let scene, camera, renderer, controls;
+  let raycaster, mouse;
+  let blocksGroup = new THREE.Group();
+  let highlightGroup = new THREE.Group();
+  let labels = []; 
+  let selectedBlock = null;
+  let currentMode = null; 
+  
+  const colors = {
+    top: 0x3b82f6, front: 0xef4444, side: 0x10b981,
+    point: 0xef4444, line: 0xfacc15, plane: 0x4f46e5
+  };
+
+  function init() {
+    const container = document.getElementById('canvas-container');
+    scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x090d16);
+    
+    camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 1000);
+    camera.position.set(8, 10, 12);
+    
+    renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(container.clientWidth, container.clientHeight);
+    container.appendChild(renderer.domElement);
+    
+    controls = new THREE.OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.05;
+    controls.maxPolarAngle = Math.PI / 2; 
+    controls.target.set(0, 1, 0);
+
+    raycaster = new THREE.Raycaster();
+    mouse = new THREE.Vector2();
+
+    scene.add(new THREE.AmbientLight(0xffffff, 0.8));
+    const dirLight = new THREE.DirectionalLight(0xffffff, 0.9);
+    dirLight.position.set(10, 20, 10);
+    scene.add(dirLight);
+
+    const gridHelper = new THREE.GridHelper(12, 12, 0x4f46e5, 0x1e293b);
+    gridHelper.position.y = -0.01;
+    scene.add(gridHelper);
+
+    scene.add(blocksGroup);
+    scene.add(highlightGroup);
+
+    window.addEventListener('resize', onWindowResize);
+    renderer.domElement.addEventListener('pointerdown', onPointerDown);
+    renderer.domElement.addEventListener('pointerup', onPointerUp);
+
+    addBlockToScene(0, 0, 0);
+    animate();
+  }
+
+  let startX, startY;
+  function onPointerDown(e) {
+    startX = e.clientX; 
+    startY = e.clientY;
+  }
+
+  function onPointerUp(e) {
+    const dist = Math.sqrt(Math.pow(e.clientX - startX, 2) + Math.pow(e.clientY - startY, 2));
+    if (dist > 10) return; 
+
+    const rect = renderer.domElement.getBoundingClientRect();
+    mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+    mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+    raycaster.setFromCamera(mouse, camera);
+
+    const blockIntersects = raycaster.intersectObjects(blocksGroup.children);
+    
+    if (blockIntersects.length > 0) {
+      selectBlock(blockIntersects[0].object);
+      if (window.innerWidth <= 820) {
+        const editBtn = document.querySelectorAll('.mobile-nav-btn')[1];
+        const panel = document.getElementById('panel-edit');
+        if (!panel.classList.contains('active')) {
+           togglePanel('panel-edit', editBtn);
+        }
+      }
+    } else {
+      selectBlock(null);
+    }
+  }
+
+  function createBlockMesh() {
+    const geo = new THREE.BoxGeometry(1, 1, 1);
+    const mats = [
+      new THREE.MeshStandardMaterial({ color: colors.side }),  
+      new THREE.MeshStandardMaterial({ color: colors.side }),  
+      new THREE.MeshStandardMaterial({ color: colors.top }),   
+      new THREE.MeshStandardMaterial({ color: 0x475569 }),     
+      new THREE.MeshStandardMaterial({ color: colors.front }), 
+      new THREE.MeshStandardMaterial({ color: colors.front })  
+    ];
+    const mesh = new THREE.Mesh(geo, mats);
+    
+    const edges = new THREE.EdgesGeometry(geo);
+    const line = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({ color: 0x1e293b, linewidth: 1 }));
+    mesh.add(line);
+    return mesh;
+  }
+
+  function resetCountDisplay() {
+    document.getElementById('countResults').style.display = 'none';
+    document.getElementById('countPoints').innerText = '0';
+    document.getElementById('countLines').innerText = '0';
+    document.getElementById('countPlanes').innerText = '0';
+
+    document.getElementById('countResultsMobile').style.display = 'none';
+    document.getElementById('countPointsMobile').innerText = '0';
+    document.getElementById('countLinesMobile').innerText = '0';
+    document.getElementById('countPlanesMobile').innerText = '0';
+  }
+
+  function addBlockToScene(x, y, z) {
+    const collision = blocksGroup.children.some(b => 
+      b.position.x === x + 0.5 && b.position.y === y + 0.5 && b.position.z === z + 0.5
+    );
+    if (collision) {
+      alert("در این مختصات از قبل مکعبی وجود دارد!");
+      return;
+    }
+
+    const block = createBlockMesh();
+    block.position.set(x + 0.5, y + 0.5, z + 0.5);
+    blocksGroup.add(block);
+    
+    resetCountDisplay();
+    refreshAnalysis();
+  }
+
+  function addNewBlock() {
+    const x = parseFloat(document.getElementById('addX').value) || 0;
+    const y = parseFloat(document.getElementById('addY').value) || 0;
+    const z = parseFloat(document.getElementById('addZ').value) || 0;
+    addBlockToScene(x, y, z);
+  }
+
+  function selectBlock(block) {
+    if (selectedBlock) {
+      selectedBlock.traverse(child => { if(child.isLineSegments) child.material.color.setHex(0x1e293b); });
+    }
+    
+    selectedBlock = block;
+    const editPanel = document.getElementById('editPanel');
+    const noSelectionMsg = document.getElementById('noSelectionMsg');
+
+    if (selectedBlock) {
+      selectedBlock.traverse(child => { if(child.isLineSegments) child.material.color.setHex(0xfacc15); });
+      
+      document.getElementById('editX').value = selectedBlock.position.x - 0.5;
+      document.getElementById('editY').value = selectedBlock.position.y - 0.5;
+      document.getElementById('editZ').value = selectedBlock.position.z - 0.5;
+      
+      editPanel.style.display = 'block';
+      noSelectionMsg.style.display = 'none';
+    } else {
+      editPanel.style.display = 'none';
+      noSelectionMsg.style.display = 'block';
+    }
+  }
+
+  function saveEdit() {
+    if (!selectedBlock) return;
+    const newX = (parseFloat(document.getElementById('editX').value) || 0) + 0.5;
+    const newY = (parseFloat(document.getElementById('editY').value) || 0) + 0.5;
+    const newZ = (parseFloat(document.getElementById('editZ').value) || 0) + 0.5;
+    
+    const collision = blocksGroup.children.some(b => 
+      b !== selectedBlock && b.position.x === newX && b.position.y === newY && b.position.z === newZ
+    );
+    
+    if (collision) {
+      alert("در مختصات جدید، مکعب دیگری وجود دارد!");
+      return;
+    }
+    
+    selectedBlock.position.set(newX, newY, newZ);
+    resetCountDisplay(); 
+    refreshAnalysis();
+  }
+
+  function changeHeight(dir) {
+    if (!selectedBlock) return;
+    let newY = selectedBlock.position.y + dir;
+    if (newY < 0.5) newY = 0.5;
+
+    const newX = selectedBlock.position.x;
+    const newZ = selectedBlock.position.z;
+
+    const collision = blocksGroup.children.some(b => 
+      b !== selectedBlock && b.position.x === newX && b.position.y === newY && b.position.z === newZ
+    );
+
+    if (!collision) {
+      selectedBlock.position.y = newY;
+      document.getElementById('editY').value = newY - 0.5;
+      resetCountDisplay(); 
+      refreshAnalysis();
+    }
+  }
+
+  function duplicateSelected() {
+    if (!selectedBlock) return;
+    const x = selectedBlock.position.x - 0.5;
+    const y = selectedBlock.position.y - 0.5;
+    const z = selectedBlock.position.z - 0.5;
+    addBlockToScene(x + 1, y, z);
+  }
+
+  function deleteSelected() {
+    if (selectedBlock) {
+      if (confirm("آیا از حذف این مکعب (حجم انتخابی) اطمینان دارید؟")) {
+        blocksGroup.remove(selectedBlock);
+        selectBlock(null);
+        resetCountDisplay(); 
+        refreshAnalysis();
+      }
+    }
+  }
+
+  function clearAll() {
+    if (confirm("آیا از پاکسازی کامل صفحه و حذف تمام مکعب‌ها اطمینان دارید؟")) {
+      while(blocksGroup.children.length > 0) {
+        blocksGroup.remove(blocksGroup.children[0]);
+      }
+      selectBlock(null);
+      resetCountDisplay(); 
+      refreshAnalysis();
+    }
+  }
+
+  function clearHighlights() {
+    while(highlightGroup.children.length > 0) highlightGroup.remove(highlightGroup.children[0]);
+    labels.forEach(l => l.element.remove());
+    labels = [];
+    blocksGroup.children.forEach(block => {
+      block.material.forEach(m => { m.opacity = 1; m.transparent = false; });
+      block.visible = true;
+    });
+  }
+
+  function refreshAnalysis() {
+    if (!currentMode) {
+      clearHighlights();
+      return;
+    }
+    clearHighlights();
+    if (currentMode === 'points') drawPoints();
+    else if (currentMode === 'lines') drawLines();
+    else if (currentMode === 'planes') drawPlanes();
+  }
+
+  function toggleHighlight(type, btn) {
+    const isActive = btn.classList.contains('active');
+    document.querySelectorAll('.tool-btn').forEach(b => { b.classList.remove('active'); });
+
+    if (!isActive) {
+        document.querySelectorAll('.tool-btn').forEach(b => {
+            if(b.textContent.includes('نقاط') && type === 'points') b.classList.add('active');
+            if(b.textContent.includes('لبه‌ها') && type === 'lines') b.classList.add('active');
+            if(b.textContent.includes('صفحات') && type === 'planes') b.classList.add('active');
+        });
+    }
+    
+    clearHighlights();
+    currentMode = !isActive ? type : null;
+
+    if (currentMode) {
+      if (type === 'points') drawPoints();
+      else if (type === 'lines') drawLines();
+      else if (type === 'planes') drawPlanes();
+    } else {
+      resetCountDisplay(); 
+    }
+  }
+
+  function getUniquePoints() {
+    const pointsMap = new Map();
+    blocksGroup.children.forEach(block => {
+      const pos = block.position;
+      const corners = [
+        [-0.5, -0.5, -0.5], [ 0.5, -0.5, -0.5], [ 0.5, -0.5,  0.5], [-0.5, -0.5,  0.5],
+        [-0.5,  0.5, -0.5], [ 0.5,  0.5, -0.5], [ 0.5,  0.5,  0.5], [-0.5,  0.5,  0.5]
+      ];
+      corners.forEach(c => {
+        const x = (pos.x + c[0]).toFixed(2);
+        const y = (pos.y + c[1]).toFixed(2);
+        const z = (pos.z + c[2]).toFixed(2);
+        const key = `${x},${y},${z}`;
+        if (!pointsMap.has(key)) pointsMap.set(key, new THREE.Vector3(parseFloat(x), parseFloat(y), parseFloat(z)));
+      });
+    });
+    return pointsMap;
+  }
+
+  function drawPoints() {
+    const pointsMap = getUniquePoints();
+    const sortedPoints = Array.from(pointsMap.values()).sort((a, b) => {
+      if (a.y !== b.y) return b.y - a.y; 
+      if (a.x !== b.x) return a.x - b.x; 
+      return a.z - b.z;
+    });
+
+    sortedPoints.forEach((vec, index) => {
+      const sphere = new THREE.Mesh(new THREE.SphereGeometry(0.08, 16, 16), new THREE.MeshBasicMaterial({ color: colors.point }));
+      sphere.position.copy(vec);
+      highlightGroup.add(sphere);
+      addLabel(vec, (index + 1).toString(), 'label-point', vec);
+    });
+
+    document.getElementById('countResults').style.display = 'block';
+    document.getElementById('countPoints').innerText = pointsMap.size;
+    document.getElementById('countResultsMobile').style.display = 'block';
+    document.getElementById('countPointsMobile').innerText = pointsMap.size;
+  }
+
+  function drawLines() {
+    blocksGroup.children.forEach(block => {
+      block.material.forEach(m => { m.opacity = 0.15; m.transparent = true; });
+    });
+
+    const drawnEdges = new Map(); 
+    blocksGroup.children.forEach(block => {
+      const pos = block.position;
+      const edges = [
+        [[-0.5,-0.5,-0.5], [ 0.5,-0.5,-0.5]], [[ 0.5,-0.5,-0.5], [ 0.5,-0.5, 0.5]], [[ 0.5,-0.5, 0.5], [-0.5,-0.5, 0.5]], [[-0.5,-0.5, 0.5], [-0.5,-0.5,-0.5]],
+        [[-0.5, 0.5,-0.5], [ 0.5, 0.5,-0.5]], [[ 0.5, 0.5,-0.5], [ 0.5, 0.5, 0.5]], [[ 0.5, 0.5, 0.5], [-0.5, 0.5, 0.5]], [[-0.5, 0.5, 0.5], [-0.5, 0.5,-0.5]],
+        [[-0.5,-0.5,-0.5], [-0.5, 0.5,-0.5]], [[ 0.5,-0.5,-0.5], [ 0.5, 0.5,-0.5]], [[ 0.5,-0.5, 0.5], [ 0.5, 0.5, 0.5]], [[-0.5,-0.5, 0.5], [-0.5, 0.5, 0.5]]
+      ];
+
+      edges.forEach(pair => {
+        const p1 = new THREE.Vector3(pos.x+pair[0][0], pos.y+pair[0][1], pos.z+pair[0][2]);
+        const p2 = new THREE.Vector3(pos.x+pair[1][0], pos.y+pair[1][1], pos.z+pair[1][2]);
+        const str1 = `${p1.x.toFixed(2)},${p1.y.toFixed(2)},${p1.z.toFixed(2)}`;
+        const str2 = `${p2.x.toFixed(2)},${p2.y.toFixed(2)},${p2.z.toFixed(2)}`;
+        const key = str1 < str2 ? `${str1}|${str2}` : `${str2}|${str1}`;
+
+        if (!drawnEdges.has(key)) {
+          drawnEdges.set(key, { p1, p2, mid: p1.clone().lerp(p2, 0.5) });
+        }
+      });
+    });
+
+    let count = 1;
+    drawnEdges.forEach((edge) => {
+      const distance = edge.p1.distanceTo(edge.p2);
+      const cylinderGeo = new THREE.CylinderGeometry(0.03, 0.03, distance, 8);
+      const cylinderMat = new THREE.MeshBasicMaterial({ color: colors.line });
+      const cylinder = new THREE.Mesh(cylinderGeo, cylinderMat);
+      
+      cylinder.position.copy(edge.mid);
+      cylinder.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0), edge.p2.clone().sub(edge.p1).normalize());
+      highlightGroup.add(cylinder);
+
+      addLabel(edge.mid, count.toString(), 'label-line', edge.mid);
+      count++;
+    });
+
+    document.getElementById('countResults').style.display = 'block';
+    document.getElementById('countLines').innerText = drawnEdges.size;
+    document.getElementById('countResultsMobile').style.display = 'block';
+    document.getElementById('countLinesMobile').innerText = drawnEdges.size;
+  }
+
+  function drawPlanes() {
+    blocksGroup.children.forEach(block => {
+      block.material.forEach(m => { m.opacity = 0.2; m.transparent = true; });
+      block.traverse(child => { if(child.isLineSegments) child.material.color.setHex(0x94a3b8); });
+    });
+    
+    let planeCount = 0;
+    const drawnPlanes = new Set();
+
+    blocksGroup.children.forEach(block => {
+      const pos = block.position;
+      const faces = [
+        { dir: [0, 0, 1], pos: [0, 0, 0.51], color: colors.front }, 
+        { dir: [0, 0, -1], pos: [0, 0, -0.51], color: colors.front }, 
+        { dir: [0, 1, 0], pos: [0, 0.51, 0], color: colors.top }, 
+        { dir: [0, -1, 0], pos: [0, -0.51, 0], color: 0x475569 }, 
+        { dir: [1, 0, 0], pos: [0.51, 0, 0], color: colors.side }, 
+        { dir: [-1, 0, 0], pos: [-0.51, 0, 0], color: colors.side }  
+      ];
+
+      faces.forEach(face => {
+        const neighborX = pos.x + face.dir[0];
+        const neighborY = pos.y + face.dir[1];
+        const neighborZ = pos.z + face.dir[2];
+        
+        const hasNeighbor = blocksGroup.children.some(b => 
+          b.position.x === neighborX && b.position.y === neighborY && b.position.z === neighborZ
+        );
+
+        if (!hasNeighbor) {
+          const key = `${pos.x+face.pos[0]},${pos.y+face.pos[1]},${pos.z+face.pos[2]}-${face.dir.join(',')}`;
+          if (!drawnPlanes.has(key)) {
+            drawnPlanes.add(key);
+            planeCount++;
+
+            const geo = new THREE.PlaneGeometry(1, 1);
+            const mat = new THREE.MeshBasicMaterial({ color: face.color, side: THREE.DoubleSide, transparent: true, opacity: 0.85 });
+            const mesh = new THREE.Mesh(geo, mat);
+            
+            mesh.position.set(pos.x + face.pos[0], pos.y + face.pos[1], pos.z + face.pos[2]);
+            if (face.dir[0] !== 0) mesh.rotation.y = Math.PI / 2;
+            if (face.dir[1] !== 0) mesh.rotation.x = Math.PI / 2;
+            
+            highlightGroup.add(mesh);
+            const labelPos = mesh.position.clone().add(new THREE.Vector3(face.dir[0]*0.05, face.dir[1]*0.05, face.dir[2]*0.05));
+            addLabel(labelPos, planeCount.toString(), 'label-plane', labelPos);
+          }
+        }
+      });
+    });
+
+    document.getElementById('countResults').style.display = 'block';
+    document.getElementById('countPlanes').innerText = planeCount;
+    document.getElementById('countResultsMobile').style.display = 'block';
+    document.getElementById('countPlanesMobile').innerText = planeCount;
+  }
+
+  function addLabel(position3D, text, className, anchorPoint) {
+    const el = document.createElement('div');
+    el.className = `label-3d ${className || ''}`;
+    el.innerText = text;
+    document.getElementById('labels-container').appendChild(el);
+    labels.push({ element: el, pos: position3D.clone(), anchor: anchorPoint ? anchorPoint.clone() : position3D.clone() });
+  }
+
+  function updateLabels() {
+    const rect = document.getElementById('labels-container').getBoundingClientRect();
+    const raycasterLabel = new THREE.Raycaster();
+
+    labels.forEach(label => {
+      const vector = label.pos.clone();
+      vector.project(camera);
+      if (vector.z > 1) { label.element.style.display = 'none'; return; }
+      
+      const screenX = (vector.x * 0.5 + 0.5) * rect.width;
+      const screenY = (-vector.y * 0.5 + 0.5) * rect.height;
+
+      let isOccluded = false;
+      if (blocksGroup.children.length > 0) {
+        const cameraPos = camera.position.clone();
+        const dir = label.anchor.clone().sub(cameraPos).normalize();
+        const start = cameraPos.clone().add(dir.clone().multiplyScalar(0.4));
+        raycasterLabel.set(start, dir);
+        const intersects = raycasterLabel.intersectObjects(blocksGroup.children, false);
+        
+        if (intersects.length > 0) {
+          const distanceToHit = intersects[0].distance + 0.4;
+          const distanceToAnchor = cameraPos.distanceTo(label.anchor);
+          if (distanceToHit < distanceToAnchor - 0.15) {
+            isOccluded = true;
+          }
+        }
+      }
+
+      if (isOccluded) {
+        label.element.style.display = 'none';
+      } else {
+        label.element.style.display = 'block';
+        label.element.style.left = `${screenX}px`;
+        label.element.style.top = `${screenY}px`;
+      }
+    });
+  }
+
+  function animate() {
+    requestAnimationFrame(animate);
+    controls.update();
+    updateLabels(); 
+    renderer.render(scene, camera);
+  }
+
+  function onWindowResize() {
+    const container = document.getElementById('canvas-container');
+    camera.aspect = container.clientWidth / container.clientHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(container.clientWidth, container.clientHeight);
+  }
+
+  window.onload = init;
+</script>
+</body>
+</html>
